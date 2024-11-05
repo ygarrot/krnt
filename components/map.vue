@@ -43,7 +43,6 @@ if (typeof(Number.prototype.toRad) === "undefined") {
 
 const getTileUrls = (bounds, tileLayer, zoom) => {
   const divide = 256
-  // const divide = tileLayer.options.tileSize
     var min = map.value.leafletObject.project(bounds.getNorthWest(), zoom).divideBy(divide).floor(),
         max = map.value.leafletObject.project(bounds.getSouthEast(), zoom).divideBy(divide).floor(),
         urls = [];
@@ -73,22 +72,19 @@ const polygons = ref(null)
 
 const onZoomUpdate = async(e) => {
   zoom.value = e.target.getZoom()
+  console.log(zoom.value)
+  if (zoom.value < 13) return;
   const baseUrl = 'https://agri-geo-data-gate.karnott.fr/geometries/tiles/'
-  const center = e.target.getCenter()
   const tileLayer = map.value.leafletObject._layers[0]
   const allUrls = getTileUrls(e.target.getBounds(), tileLayer, zoom.value)
-  polygons.value = []
-  // allUrls.forEach(async (url) => {
-  //   const { x, y, z } = url
-  //   const data = await $fetch(`${baseUrl}${z}/${x}/${y}?dataset_ids=${dataset}`)
-  //   if (!data) return
-  //   console.log(data)
-  //   polygons.value += data
-  // })
-  const { x, y, z } = getTileURL(center.lat, center.lng, zoom.value)
-  const url = `${baseUrl}${z}/${x}/${y}?dataset_ids=${dataset}`
-  const  data = await $fetch(url)
-  polygons.value = data
+  const currentTiles = allUrls.map(async(url) => {
+    const { x, y, z } = url
+    const data = await $fetch(`${baseUrl}${z}/${x}/${y}?dataset_ids=${dataset}`)
+    if (!data) return
+    return data
+  })
+  const cT = await Promise.all(currentTiles)
+  polygons.value = cT.flat().filter((el) => el)
 }
 
 </script>
