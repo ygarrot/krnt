@@ -12,7 +12,6 @@
       </v-list>
     </v-navigation-drawer>
 
-    // increase width
     <v-navigation-drawer location="right" v-if="zoneWithDetail" width="300">
       <v-card>
         <v-card-title>{{ selectedZone.name }}</v-card-title>

@@ -34,16 +34,21 @@ const { $api } = useNuxtApp()
 const emit = defineEmits(['selectPolygon'])
 const map = ref(null)
 
-const getTileUrls = (bounds, zoom) => {
+type XYZ = { x: number, y: number, z: number }
+
+const getTileXYZ = (bounds: L.LatLngBounds, zoom: number): XYZ[] => {
   const divide = 256
-  var min = map.value.leafletObject.project(bounds.getNorthWest(), zoom).divideBy(divide).floor(),
+  if (!map?.value?.leafletObject) return
+  let min = map.value.leafletObject.project(bounds.getNorthWest(), zoom).divideBy(divide).floor(),
     max = map.value.leafletObject.project(bounds.getSouthEast(), zoom).divideBy(divide).floor(),
     urls = [];
 
-  for (var i = min.x; i <= max.x; i++) {
-    for (var j = min.y; j <= max.y; j++) {
-      var coords = new L.Point(i, j);
-      coords.z = zoom;
+  for (let i = min.x; i <= max.x; i++) {
+    for (let j = min.y; j <= max.y; j++) {
+      let coords: XYZ = {
+        ...new L.Point(i, j),
+        z: zoom
+      }
       urls.push(coords)
     }
   }
@@ -63,25 +68,27 @@ watch(selectedZone, (zone) => {
   map.value.leafletObject.setView([coordinates[1], coordinates[0]], 15)
 })
 
-const onZoomUpdate = async(e) => {
+const filterDuplicates = (array: any[]) => {
+  let ids: number[] = []
+  return array.filter((item) => {
+    if (ids.includes(item.id)) return false
+    ids.push(item.id)
+    return true
+  })
+}
+
+const onZoomUpdate = async(e: L.LeafletEvent) => {
   zoom.value = e.target.getZoom()
-  let ids = []
   if (zoom.value < 13) return;
-  const allUrls = getTileUrls(e.target.getBounds(), zoom.value)
-  const currentTiles = allUrls.map(async(url) => {
+  const tileXYZ = getTileXYZ(e.target.getBounds(), zoom.value)
+  const currentTiles = tileXYZ.map(async(url) => {
     const { x, y, z } = url
     const data = await $api.findTile( x, y, z)
     if (!data) return
     return data
   })
   let cT = (await Promise.all(currentTiles)).flat()
-  let filtered = []
-  cT.forEach((tile) => {
-    if (ids.includes(tile.id)) return
-    ids.push(tile.id)
-    filtered.push(tile)
-  })
 
-  zones.value = filtered.flat()
+  zones.value = filterDuplicates(cT)
 }
 </script>
